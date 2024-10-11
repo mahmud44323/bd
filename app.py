@@ -1,18 +1,29 @@
-from flask import Flask, request, send_file, jsonify, render_template_string
+from flask import Flask, request, render_template_string
 import cv2
 import os
 
 app = Flask(__name__)
 
-# Function to apply cartoon effect
+# Enhanced cartoon effect function
 def convert(image):
-    Gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    Blur_image = cv2.GaussianBlur(Gray_image, (3, 3), 0)
-    detect_edge = cv2.adaptiveThreshold(Blur_image, 255,
-                                        cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 5, 5)
+    # Step 1: Apply bilateral filter for smoothing while preserving edges
+    color = cv2.bilateralFilter(image, d=9, sigmaColor=300, sigmaSpace=300)
 
-    output = cv2.bitwise_and(image, image, mask=detect_edge)
-    return output
+    # Step 2: Convert to grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # Step 3: Apply median blur to smooth the grayscale image
+    gray = cv2.medianBlur(gray, 7)
+
+    # Step 4: Use adaptive thresholding for edge detection
+    edges = cv2.adaptiveThreshold(gray, 255,
+                                   cv2.ADAPTIVE_THRESH_MEAN_C,
+                                   cv2.THRESH_BINARY, blockSize=9, C=2)
+
+    # Step 5: Combine edges with color image
+    cartoon = cv2.bitwise_and(color, color, mask=edges)
+
+    return cartoon
 
 @app.route('/')
 def index():
@@ -128,11 +139,11 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload():
     if 'file' not in request.files:
-        return jsonify({"error": "No file uploaded"}), 400
+        return render_template_string('<h1>Error: No file uploaded</h1>'), 400
 
     file = request.files['file']
     if file.filename == '':
-        return jsonify({"error": "No file selected"}), 400
+        return render_template_string('<h1>Error: No file selected</h1>'), 400
 
     # Read the image file into a numpy array
     file_path = os.path.join('uploads', file.filename)
@@ -207,4 +218,4 @@ if __name__ == '__main__':
     # Create directories if they don't exist
     os.makedirs('uploads', exist_ok=True)
     os.makedirs('static', exist_ok=True)
-    app.run(host='0.0.0.0', port=5001)  # Make the app accessible on all interfaces
+    app.run(host='0.0.0.0', port=5002)  # Make the app accessible on all interfaces
