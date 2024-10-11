@@ -33,20 +33,18 @@ def handle_photo(update: Update, context: CallbackContext):
     
     start(update, context)
 
+def handle_text(update: Update, context: CallbackContext):
+    update.message.reply_text("Please upload an image or use one of the buttons.")
+
 def main():
+    # Replace 'YOUR_TOKEN' with your actual Telegram bot token
     updater = Updater("7615742646:AAFhMMzt978vsaL64Zcr1Fh06WYz1TJM9V4", use_context=True)
     dp = updater.dispatcher
 
+    # Register command and message handlers
     dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    dp.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
-
-    updater.start_polling()
-    updater.idle()
-
-if __name__ == '__main__':
-    main(    dp.add_handler(MessageHandler(Filters.photo, handle_photo))
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
+    dp.add_handler(MessageHandler(filters.PHOTO, handle_photo))  # Updated Filters usage
+    dp.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))  # Updated Filters usage
 
     # Start the Bot
     updater.start_polling()
