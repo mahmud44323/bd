@@ -1,56 +1,145 @@
+from flask import Flask, request, send_file, jsonify
 import cv2
-from telegram import Update, InputFile, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import Updater, CommandHandler, MessageHandler, CallbackContext
-from telegram.ext import filters  # Correctly import filters
+import os
 
-def apply_cartoon_effect(image_path):
-    image = cv2.imread(image_path)
-    Gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+app = Flask(__name__)
+
+# Function to apply cartoon effect
+def convert(image):
+    Gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     Blur_image = cv2.GaussianBlur(Gray_image, (3, 3), 0)
-    detect_edge = cv2.adaptiveThreshold(Blur_image, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 5, 5)
-    
+    detect_edge = cv2.adaptiveThreshold(Blur_image, 255,
+                                        cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 5, 5)
+
     output = cv2.bitwise_and(image, image, mask=detect_edge)
-    output_image_path = 'cartoon_effect.png'
-    cv2.imwrite(output_image_path, output)
-    return output_image_path
+    return output
 
-def start(update: Update, context: CallbackContext):
-    keyboard = [
-        [KeyboardButton("Upload Image")],
-        [KeyboardButton("Help")],
-        [KeyboardButton("Cancel")],
-    ]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    update.message.reply_text("Welcome to the Cartoon Effect Bot! Please select an option:", reply_markup=reply_markup)
+@app.route('/')
+def index():
+    return '''
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Cartoon Effect</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+        <style>
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+                font-family: 'Arial', sans-serif;
+            }
 
-def handle_photo(update: Update, context: CallbackContext):
-    photo_file = update.message.photo[-1].get_file()
-    photo_file.download("uploaded_image.png")
-    output_image_path = apply_cartoon_effect("uploaded_image.png")
-    
-    with open(output_image_path, 'rb') as img:
-        update.message.reply_photo(photo=InputFile(img, filename='cartoon_effect.png'))
-    
-    start(update, context)
+            body {
+                background: #e0e0e0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+            }
 
-def handle_text(update: Update, context: CallbackContext):
-    update.message.reply_text("Please upload an image or use one of the buttons.")
+            .container {
+                background: #ffffff;
+                border-radius: 20px;
+                box-shadow: 20px 20px 60px #d9d9d9,
+                            -20px -20px 60px #ffffff;
+                padding: 20px;
+                width: 90%;
+                max-width: 400px;
+                text-align: center;
+            }
 
-def main():
-    # Replace 'YOUR_TOKEN' with your actual Telegram bot token
-    updater = Updater("7615742646:AAFhMMzt978vsaL64Zcr1Fh06WYz1TJM9V4", use_context=True)
-    dp = updater.dispatcher
+            h1 {
+                margin-bottom: 20px;
+                color: #333;
+            }
 
-    # Register command and message handlers
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(filters.PHOTO, handle_photo))  # Updated Filters usage
-    dp.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))  # Updated Filters usage
+            input[type="file"] {
+                display: none;
+            }
 
-    # Start the Bot
-    updater.start_polling()
-    
-    # Run the bot until you send a signal to stop (Ctrl+C)
-    updater.idle()
+            label {
+                background: #ffffff;
+                border-radius: 12px;
+                padding: 10px 20px;
+                cursor: pointer;
+                margin: 10px 0;
+                display: inline-block;
+                box-shadow: 8px 8px 30px #d9d9d9,
+                            -8px -8px 30px #ffffff;
+                transition: 0.3s;
+            }
+
+            label:hover {
+                box-shadow: 4px 4px 20px #d9d9d9,
+                            -4px -4px 20px #ffffff;
+            }
+
+            button {
+                background: #4CAF50;
+                border: none;
+                border-radius: 12px;
+                color: white;
+                padding: 10px 20px;
+                cursor: pointer;
+                font-size: 16px;
+                box-shadow: 8px 8px 30px #d9d9d9,
+                            -8px -8px 30px #ffffff;
+                transition: 0.3s;
+                margin: 10px 0;
+            }
+
+            button:hover {
+                background: #45a049;
+            }
+
+            @media (max-width: 600px) {
+                .container {
+                    width: 95%;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Upload Image for Cartoon Effect</h1>
+            <form action="/upload" method="post" enctype="multipart/form-data">
+                <label for="file"><i class="fas fa-upload"></i> Choose File</label>
+                <input type="file" name="file" id="file" accept="image/*" required>
+                <button type="submit">Upload</button>
+            </form>
+        </div>
+    </body>
+    </html>
+    '''
+
+@app.route('/upload', methods=['POST'])
+def upload():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+
+    # Read the image file into a numpy array
+    file_path = os.path.join('uploads', file.filename)
+    file.save(file_path)
+    image = cv2.imread(file_path)
+
+    # Apply the cartoon effect
+    cartoon_image = convert(image)
+
+    # Save the cartoon image
+    cartoon_file_path = os.path.join('static', 'cartoon_' + file.filename)
+    cv2.imwrite(cartoon_file_path, cartoon_image)
+
+    return jsonify({"message": "Cartoon effect applied", "cartoon_image_url": f"/{cartoon_file_path}"}), 200
 
 if __name__ == '__main__':
-    main()
+    # Create directories if they don't exist
+    os.makedirs('uploads', exist_ok=True)
+    os.makedirs('static', exist_ok=True)
+    app.run(host='0.0.0.0', port=5000)  # Make the app accessible on all interfaces
