@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file, jsonify
+from flask import Flask, request, send_file, jsonify, render_template_string
 import cv2
 import os
 
@@ -16,7 +16,7 @@ def convert(image):
 
 @app.route('/')
 def index():
-    return '''
+    return render_template_string('''
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -35,6 +35,7 @@ def index():
             body {
                 background: #e0e0e0;
                 display: flex;
+                flex-direction: column;
                 justify-content: center;
                 align-items: center;
                 height: 100vh;
@@ -95,6 +96,11 @@ def index():
                 background: #45a049;
             }
 
+            .result-image {
+                margin-top: 20px;
+                display: none;
+            }
+
             @media (max-width: 600px) {
                 .container {
                     width: 95%;
@@ -110,10 +116,14 @@ def index():
                 <input type="file" name="file" id="file" accept="image/*" required>
                 <button type="submit">Upload</button>
             </form>
+            <div class="result-image">
+                <h2>Cartoon Image:</h2>
+                <img id="cartoon-image" src="" alt="Cartoon Image" style="max-width: 100%;">
+            </div>
         </div>
     </body>
     </html>
-    '''
+    ''')
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -136,7 +146,62 @@ def upload():
     cartoon_file_path = os.path.join('static', 'cartoon_' + file.filename)
     cv2.imwrite(cartoon_file_path, cartoon_image)
 
-    return jsonify({"message": "Cartoon effect applied", "cartoon_image_url": f"/{cartoon_file_path}"}), 200
+    # Return the HTML page with the cartoon image URL
+    return render_template_string('''
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Cartoon Effect Result</title>
+        <style>
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+                font-family: 'Arial', sans-serif;
+            }
+
+            body {
+                background: #e0e0e0;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+            }
+
+            .container {
+                background: #ffffff;
+                border-radius: 20px;
+                box-shadow: 20px 20px 60px #d9d9d9,
+                            -20px -20px 60px #ffffff;
+                padding: 20px;
+                width: 90%;
+                max-width: 400px;
+                text-align: center;
+            }
+
+            h1 {
+                margin-bottom: 20px;
+                color: #333;
+            }
+
+            img {
+                max-width: 100%;
+                border-radius: 12px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Cartoon Effect Applied!</h1>
+            <img src="/static/{{ cartoon_image }}" alt="Cartoon Image">
+            <a href="/">Go Back</a>
+        </div>
+    </body>
+    </html>
+    ''', cartoon_image='cartoon_' + file.filename)
 
 if __name__ == '__main__':
     # Create directories if they don't exist
