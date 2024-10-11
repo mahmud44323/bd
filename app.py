@@ -142,4 +142,4 @@ if __name__ == '__main__':
     # Create directories if they don't exist
     os.makedirs('uploads', exist_ok=True)
     os.makedirs('static', exist_ok=True)
-    app.run(host='0.0.0.0', port=5000)  # Make the app accessible on all interfaces
+    app.run(host='0.0.0.0', port=5001)  # Make the app accessible on all interfaces
